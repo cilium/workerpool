@@ -143,7 +143,7 @@ func (wp *WorkerPool) Close() error {
 		return nil
 	}
 	wp.closed = true
-	close(wp.tasks)
 	wp.wg.Wait()
+	close(wp.tasks)
 	return nil
 }
