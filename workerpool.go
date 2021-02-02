@@ -77,6 +77,8 @@ func (wp *WorkerPool) run() {
 // Submit blocks until a routine start processing the task.
 // If a drain operation is in progress, ErrDraining is returned and the task
 // is not submitted for processing.
+// If the worker pool is closed, ErrClosed is returned and the task is not
+// submitted for processing.
 func (wp *WorkerPool) Submit(id string, f func() error) error {
 	wp.mu.Lock()
 	if wp.closed {
@@ -101,6 +103,8 @@ func (wp *WorkerPool) Submit(id string, f func() error) error {
 // submitting new tasks to the worker pool. Drain returns the results of the
 // tasks that have been processed.
 // If a drain operation is already in progress, ErrDraining is returned.
+// If the worker pool is closed, ErrClosed is returned and the task is not
+// submitted for processing.
 func (wp *WorkerPool) Drain() ([]Task, error) {
 	wp.mu.Lock()
 	if wp.closed {
