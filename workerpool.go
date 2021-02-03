@@ -138,12 +138,17 @@ func (wp *WorkerPool) Drain() ([]Task, error) {
 // needed.
 func (wp *WorkerPool) Close() error {
 	wp.mu.Lock()
-	defer wp.mu.Unlock()
 	if wp.closed {
+		wp.mu.Unlock()
 		return nil
 	}
 	wp.closed = true
+	wp.mu.Unlock()
+
 	wp.wg.Wait()
+
+	// At this point, all routines have returned. This means that Submit is not
+	// pending to write to the task channel and it is thus safe to close it.
 	close(wp.tasks)
 	return nil
 }
