@@ -70,6 +70,7 @@ func (wp *WorkerPool) run() {
 			<-wp.workers
 		}()
 	}
+	close(wp.workers)
 }
 
 // Submit submits f for processing by a worker. The given id is useful for
@@ -153,5 +154,8 @@ func (wp *WorkerPool) Close() error {
 	// At this point, all routines have returned. This means that Submit is not
 	// pending to write to the task channel and it is thus safe to close it.
 	close(wp.tasks)
+
+	// wait for the "run" routine
+	<-wp.workers
 	return nil
 }
