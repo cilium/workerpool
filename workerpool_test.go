@@ -22,7 +22,6 @@ import (
 	"time"
 )
 
-// FIXME: this test tests too many things
 func TestWorkerPool(t *testing.T) {
 	n := runtime.NumCPU()
 	wp := New(n)
@@ -38,7 +37,7 @@ func TestWorkerPool(t *testing.T) {
 	// working is used to ensure that n routines are dispatched at a given time
 	working := make(chan struct{})
 	var wg sync.WaitGroup
-	wg.Add(numTasks)
+	wg.Add(numTasks - 1)
 	for i := 0; i < numTasks-1; i++ {
 		id := fmt.Sprintf("task #%2d", i)
 		err := wp.Submit(id, func() error {
@@ -60,6 +59,7 @@ func TestWorkerPool(t *testing.T) {
 	// the n workers are busy so submitting a new task should block
 	ready := make(chan struct{})
 	sc := make(chan struct{})
+	wg.Add(1)
 	go func() {
 		id := fmt.Sprintf("task #%2d", numTasks-1)
 		ready <- struct{}{}
@@ -101,18 +101,6 @@ func TestWorkerPool(t *testing.T) {
 	}()
 
 	<-ready
-	results, err := wp.Drain()
-	if err != ErrDraining {
-		t.Errorf("drain: got '%v', want '%v'", err, ErrDraining)
-	}
-	if results != nil {
-		t.Errorf("drain: got '%v', want '%v'", results, nil)
-	}
-
-	if err := wp.Submit("", nil); err != ErrDraining {
-		t.Errorf("submit: got '%v', want '%v'", err, ErrDraining)
-	}
-
 	// un-block the worker routines
 	for i := 0; i < numTasks-1; i++ {
 		<-done
@@ -121,6 +109,7 @@ func TestWorkerPool(t *testing.T) {
 	// Now that some workers are free, the task should have been picked up.
 	<-working
 	<-done
+
 	wg.Wait()
 
 	// calls to Close should be re-entrant
@@ -134,7 +123,7 @@ func TestWorkerPool(t *testing.T) {
 		t.Errorf("submit: got '%v', want '%v'", err, ErrClosed)
 	}
 
-	results, err = wp.Drain()
+	results, err := wp.Drain()
 	if err != ErrClosed {
 		t.Errorf("drain: got '%v', want '%v'", err, ErrClosed)
 	}
