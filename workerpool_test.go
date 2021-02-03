@@ -131,3 +131,74 @@ func TestWorkerPool(t *testing.T) {
 		t.Errorf("drain: got '%v', want '%v'", results, nil)
 	}
 }
+
+func TestConcurrentDrain(t *testing.T) {
+	n := runtime.NumCPU()
+	wp := New(n)
+
+	numTasks := n + 1
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(numTasks)
+	for i := 0; i < numTasks; i++ {
+		id := fmt.Sprintf("task #%2d", i)
+		err := wp.Submit(id, func() error {
+			defer wg.Done()
+			done <- struct{}{}
+			return nil
+		})
+		if err != nil {
+			t.Errorf("failed to submit task '%s': %v", id, err)
+		}
+	}
+
+	wg.Add(1)
+	ready := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		ready <- struct{}{}
+		results, err := wp.Drain()
+		if err != nil {
+			t.Errorf("draining failed: %v", err)
+		}
+		if len(results) != numTasks {
+			t.Errorf("missing tasks results: got '%d', want '%d'", len(results), numTasks)
+		}
+		for i, r := range results {
+			id := fmt.Sprintf("task #%2d", i)
+			if s := r.String(); s != id {
+				t.Errorf("String: got '%s', want '%s'", s, id)
+			}
+			if err := r.Err(); err != nil {
+				t.Errorf("Err: got '%v', want no error", err)
+			}
+		}
+	}()
+
+	// make sure that drain is already called by the other routine
+	<-ready
+	time.Sleep(10 * time.Millisecond)
+
+	if err := wp.Submit("", nil); err != ErrDraining {
+		t.Errorf("submit: got '%v', want '%v'", err, ErrDraining)
+	}
+
+	results, err := wp.Drain()
+	if err != ErrDraining {
+		t.Errorf("drain: got '%v', want '%v'", err, ErrDraining)
+	}
+	if results != nil {
+		t.Errorf("drain: got '%v', want '%v'", results, nil)
+	}
+
+	// un-block the worker routines to allow the test to complete
+	for i := 0; i < numTasks; i++ {
+		<-done
+	}
+
+	if err := wp.Close(); err != nil {
+		t.Errorf("close: got '%v', want no error", err)
+	}
+
+	wg.Wait()
+}
