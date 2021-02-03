@@ -120,6 +120,9 @@ func (wp *WorkerPool) Drain() ([]Task, error) {
 
 	wp.wg.Wait()
 
+	// It's not necessary to hold a lock when reading wp.results as no other
+	// routine is running at this point besides the "run" routine which should
+	// be waiting on the tasks channel.
 	res := make([]Task, len(wp.results))
 	for i, t := range wp.results {
 		res[i] = t
