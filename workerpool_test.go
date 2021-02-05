@@ -23,12 +23,18 @@ import (
 	"time"
 )
 
+func TestWorkerPoolTasksCapacity(t *testing.T) {
+	wp := New(runtime.NumCPU())
+	defer wp.Close()
+
+	if c := cap(wp.tasks); c != 0 {
+		t.Errorf("tasks channel capacity is %d; want 0 (an unbuffered channel)", c)
+	}
+}
+
 func TestWorkerPool(t *testing.T) {
 	n := runtime.NumCPU()
 	wp := New(n)
-	if c := cap(wp.tasks); c != 0 {
-		t.Fatalf("tasks channel capacity: got '%d', want an unbuffered channel", c)
-	}
 
 	numTasks := n + 2
 	done := make(chan struct{})
