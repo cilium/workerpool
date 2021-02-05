@@ -16,7 +16,6 @@ package workerpool
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime"
 	"sync"
@@ -303,10 +302,10 @@ func TestWorkerPoolManyClose(t *testing.T) {
 	}
 
 	// calling Close() more than once should always return an error.
-	if err := wp.Close(); !errors.Is(err, ErrClosed) {
-		t.Fatalf("got %s; want %s", err, ErrClosed)
+	if err := wp.Close(); err != ErrClosed {
+		t.Fatalf("got %v; want %v", err, ErrClosed)
 	}
-	if err := wp.Close(); !errors.Is(err, ErrClosed) {
-		t.Fatalf("got %s; want %s", err, ErrClosed)
+	if err := wp.Close(); err != ErrClosed {
+		t.Fatalf("got %v; want %v", err, ErrClosed)
 	}
 }
