@@ -128,12 +128,12 @@ func (wp *WorkerPool) Drain() ([]Task, error) {
 
 // Close closes the worker pool, rendering it unable to process new tasks.
 // It should be called after a call to Drain and the worker pool is no longer
-// needed.
+// needed. Close will return ErrClosed if it has already been called.
 func (wp *WorkerPool) Close() error {
 	wp.mu.Lock()
 	if wp.closed {
 		wp.mu.Unlock()
-		return nil
+		return ErrClosed
 	}
 	wp.closed = true
 	wp.mu.Unlock()
