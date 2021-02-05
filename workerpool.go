@@ -57,22 +57,6 @@ func New(n int) *WorkerPool {
 	return wp
 }
 
-// run loops over the tasks channel and starts processing routines. It should
-// only be called once during the lifetime of a WorkerPool.
-func (wp *WorkerPool) run() {
-	for t := range wp.tasks {
-		t := t
-		wp.results = append(wp.results, t)
-		wp.workers <- struct{}{}
-		go func() {
-			defer wp.wg.Done()
-			t.err = t.run()
-			<-wp.workers
-		}()
-	}
-	close(wp.workers)
-}
-
 // Submit submits f for processing by a worker. The given id is useful for
 // identifying the task once it is completed.
 // Submit blocks until a routine start processing the task.
@@ -158,4 +142,20 @@ func (wp *WorkerPool) Close() error {
 	// wait for the "run" routine
 	<-wp.workers
 	return nil
+}
+
+// run loops over the tasks channel and starts processing routines. It should
+// only be called once during the lifetime of a WorkerPool.
+func (wp *WorkerPool) run() {
+	for t := range wp.tasks {
+		t := t
+		wp.results = append(wp.results, t)
+		wp.workers <- struct{}{}
+		go func() {
+			defer wp.wg.Done()
+			t.err = t.run()
+			<-wp.workers
+		}()
+	}
+	close(wp.workers)
 }
