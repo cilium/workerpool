@@ -15,6 +15,7 @@
 package workerpool
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -50,6 +51,66 @@ func TestWorkerPoolCap(t *testing.T) {
 	defer fortyTwo.Close()
 	if c := fortyTwo.Cap(); c != 42 {
 		t.Errorf("got %d; want %d", c, 42)
+	}
+}
+
+// TestWorkerPoolConcurrentTasksCount ensure that there is at least, but no
+// more than n workers running in the pool when more than n tasks are
+// submitted.
+func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
+	n := runtime.NumCPU()
+	wp := New(n)
+	defer wp.Close()
+
+	// working is written to by each task as soon as possible.
+	working := make(chan struct{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// cleanup is a bit tricky. We need to free up all tasks that will attempt
+	// to write to the working channel.
+	defer func() {
+		// call cancel first to ensure that no worker is waiting on the
+		// context.
+		cancel()
+		// all remaining tasks now can block on writing to the working channel,
+		// so drain them all.
+		for {
+			select {
+			case <-working:
+			case <-time.After(100 * time.Millisecond):
+				return
+			}
+		}
+	}()
+
+	// NOTE: schedule one more task than we have workers, hence n+1.
+	for i := 0; i < n+1; i++ {
+		id := fmt.Sprintf("task #%2d", i)
+		err := wp.Submit(id, func() error {
+			working <- struct{}{}
+			<-ctx.Done()
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("failed to submit task '%s': %v", id, err)
+		}
+	}
+
+	// ensure that n workers are busy.
+	for i := 0; i < n; i++ {
+		select {
+		case <-working:
+		case <-time.After(100 * time.Millisecond):
+			t.Fatalf("got %d tasks running; want %d", i, n)
+		}
+	}
+
+	// ensure that one task is not scheduled, as all workers should now be
+	// waiting on the context.
+	select {
+	case <-working:
+		t.Fatalf("got %d tasks running; want %d", n+1, n)
+	case <-time.After(100 * time.Millisecond):
 	}
 }
 
