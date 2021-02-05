@@ -201,10 +201,6 @@ func TestWorkerPool(t *testing.T) {
 		t.Errorf("close: got '%v', want no error", err)
 	}
 
-	if err := wp.Submit("", nil); err != ErrClosed {
-		t.Errorf("submit: got '%v', want '%v'", err, ErrClosed)
-	}
-
 	results, err := wp.Drain()
 	if err != ErrClosed {
 		t.Errorf("drain: got '%v', want '%v'", err, ErrClosed)
@@ -290,6 +286,14 @@ func TestConcurrentDrain(t *testing.T) {
 
 	if err := wp.Close(); err != nil {
 		t.Errorf("close: got '%v', want no error", err)
+	}
+}
+
+func TestWorkerPoolSubmitAfterClose(t *testing.T) {
+	wp := New(runtime.NumCPU())
+	wp.Close()
+	if err := wp.Submit("dummy", nil); err != ErrClosed {
+		t.Fatalf("got %v; want %v", err, ErrClosed)
 	}
 }
 
