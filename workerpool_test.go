@@ -194,11 +194,19 @@ func TestConcurrentDrain(t *testing.T) {
 		<-done
 	}
 
+	wg.Wait()
+
+	results, err = wp.Drain()
+	if err != nil {
+		t.Errorf("drain: got '%v', want '%v'", err, nil)
+	}
+	if len(results) != 0 {
+		t.Errorf("drain: unexpectedly got '%d' results", len(results))
+	}
+
 	if err := wp.Close(); err != nil {
 		t.Errorf("close: got '%v', want no error", err)
 	}
-
-	wg.Wait()
 }
 
 func TestWorkerPoolCap(t *testing.T) {
