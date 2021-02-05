@@ -15,6 +15,7 @@
 package workerpool
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
@@ -112,11 +113,8 @@ func TestWorkerPool(t *testing.T) {
 
 	wg.Wait()
 
-	// calls to Close should be re-entrant
-	for i := 0; i < 2; i++ {
-		if err := wp.Close(); err != nil {
-			t.Errorf("close: got '%v', want no error", err)
-		}
+	if err := wp.Close(); err != nil {
+		t.Errorf("close: got '%v', want no error", err)
 	}
 
 	if err := wp.Submit("", nil); err != ErrClosed {
@@ -221,5 +219,22 @@ func TestWorkerPoolCap(t *testing.T) {
 	defer fortyTwo.Close()
 	if c := fortyTwo.Cap(); c != 42 {
 		t.Errorf("got %d; want %d", c, 42)
+	}
+}
+
+func TestWorkerPoolManyClose(t *testing.T) {
+	wp := New(runtime.NumCPU())
+
+	// first call to Close() should not return an error.
+	if err := wp.Close(); err != nil {
+		t.Fatalf("unexpected error on Close(): %s", err)
+	}
+
+	// calling Close() more than once should always return an error.
+	if err := wp.Close(); !errors.Is(err, ErrClosed) {
+		t.Fatalf("got %s; want %s", err, ErrClosed)
+	}
+	if err := wp.Close(); !errors.Is(err, ErrClosed) {
+		t.Fatalf("got %s; want %s", err, ErrClosed)
 	}
 }
