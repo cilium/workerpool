@@ -26,9 +26,6 @@ import (
 func TestWorkerPool(t *testing.T) {
 	n := runtime.NumCPU()
 	wp := New(n)
-	if c := wp.Cap(); c != n {
-		t.Fatalf("workers channel capacity: got '%d', want '%d'", c, n)
-	}
 	if c := cap(wp.tasks); c != 0 {
 		t.Fatalf("tasks channel capacity: got '%d', want an unbuffered channel", c)
 	}
