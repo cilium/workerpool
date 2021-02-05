@@ -23,6 +23,21 @@ import (
 	"time"
 )
 
+func testWorkerPoolNewPanics(t *testing.T, n int) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("New(%d) should panic()", n)
+		}
+	}()
+	_ = New(n)
+
+}
+
+func TestWorkerPoolNewPanics(t *testing.T) {
+	testWorkerPoolNewPanics(t, 0)
+	testWorkerPoolNewPanics(t, -1)
+}
+
 func TestWorkerPoolTasksCapacity(t *testing.T) {
 	wp := New(runtime.NumCPU())
 	defer wp.Close()
