@@ -34,10 +34,13 @@ type task struct {
 // Ensure that task implements the Task interface.
 var _ Task = &task{}
 
+// String implements fmt.Stringer for task.
 func (t *task) String() string {
 	return t.id
 }
 
+// Err returns the error resulting from processing the task. It ensures that
+// the task struct implements the Task interface.
 func (t *task) Err() error {
 	return t.err
 }
