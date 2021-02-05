@@ -25,7 +25,7 @@ import (
 func TestWorkerPool(t *testing.T) {
 	n := runtime.NumCPU()
 	wp := New(n)
-	if c := cap(wp.workers); c != n {
+	if c := wp.Cap(); c != n {
 		t.Fatalf("workers channel capacity: got '%d', want '%d'", c, n)
 	}
 	if c := cap(wp.tasks); c != 0 {
@@ -201,4 +201,25 @@ func TestConcurrentDrain(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestWorkerPoolCap(t *testing.T) {
+	one := New(1)
+	defer one.Close()
+	if c := one.Cap(); c != 1 {
+		t.Errorf("got %d; want %d", c, 1)
+	}
+
+	n := runtime.NumCPU()
+	ncpu := New(n)
+	defer ncpu.Close()
+	if c := ncpu.Cap(); c != n {
+		t.Errorf("got %d; want %d", c, n)
+	}
+
+	fortyTwo := New(42)
+	defer fortyTwo.Close()
+	if c := fortyTwo.Cap(); c != 42 {
+		t.Errorf("got %d; want %d", c, 42)
+	}
 }

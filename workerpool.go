@@ -57,6 +57,11 @@ func New(n int) *WorkerPool {
 	return wp
 }
 
+// Cap returns the concurrent workers capacity, see New().
+func (wp *WorkerPool) Cap() int {
+	return cap(wp.workers)
+}
+
 // Submit submits f for processing by a worker. The given id is useful for
 // identifying the task once it is completed.
 // Submit blocks until a routine start processing the task.
