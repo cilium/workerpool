@@ -44,7 +44,7 @@ type WorkerPool struct {
 }
 
 // New creates a new pool of workers where at most n workers process submitted
-// tasks concurrently. New panic if n is no greater than 0.
+// tasks concurrently. New panics if n ≤ 0.
 func New(n int) *WorkerPool {
 	if n <= 0 {
 		panic(fmt.Sprintf("workerpool.New: n must be > 0, got %d", n))
