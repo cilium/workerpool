@@ -200,14 +200,6 @@ func TestWorkerPool(t *testing.T) {
 	if err := wp.Close(); err != nil {
 		t.Errorf("close: got '%v', want no error", err)
 	}
-
-	results, err := wp.Drain()
-	if err != ErrClosed {
-		t.Errorf("drain: got '%v', want '%v'", err, ErrClosed)
-	}
-	if results != nil {
-		t.Errorf("drain: got '%v', want '%v'", results, nil)
-	}
 }
 
 func TestConcurrentDrain(t *testing.T) {
@@ -286,6 +278,18 @@ func TestConcurrentDrain(t *testing.T) {
 
 	if err := wp.Close(); err != nil {
 		t.Errorf("close: got '%v', want no error", err)
+	}
+}
+
+func TestWorkerPoolDrainAfterClose(t *testing.T) {
+	wp := New(runtime.NumCPU())
+	wp.Close()
+	tasks, err := wp.Drain()
+	if err != ErrClosed {
+		t.Errorf("got %v; want %v", err, ErrClosed)
+	}
+	if tasks != nil {
+		t.Errorf("got %v as tasks; want %v", tasks, nil)
 	}
 }
 
