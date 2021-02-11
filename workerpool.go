@@ -36,7 +36,7 @@ var (
 type WorkerPool struct {
 	workers  chan struct{}
 	tasks    chan *task
-	results  []*task
+	results  []Task
 	wg       sync.WaitGroup
 	mu       sync.Mutex
 	draining bool
@@ -110,13 +110,10 @@ func (wp *WorkerPool) Drain() ([]Task, error) {
 
 	wp.wg.Wait()
 
-	// It's not necessary to hold a lock when reading wp.results as no other
-	// routine is running at this point besides the "run" routine which should
-	// be waiting on the tasks channel.
-	res := make([]Task, len(wp.results))
-	for i, t := range wp.results {
-		res[i] = t
-	}
+	// NOTE: It's not necessary to hold a lock when reading or writing
+	// wp.results as no other routine is running at this point besides the
+	// "run" routine which should be waiting on the tasks channel.
+	res := wp.results
 	wp.results = nil
 
 	wp.mu.Lock()
