@@ -17,6 +17,7 @@
 package workerpool
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -40,6 +41,7 @@ type WorkerPool struct {
 	wg       sync.WaitGroup
 	mu       sync.Mutex
 	draining bool
+	cancel   context.CancelFunc
 	closed   bool
 }
 
@@ -53,7 +55,9 @@ func New(n int) *WorkerPool {
 		workers: make(chan struct{}, n),
 		tasks:   make(chan *task),
 	}
-	go wp.run()
+	ctx, cancel := context.WithCancel(context.Background())
+	wp.cancel = cancel
+	go wp.run(ctx)
 	return wp
 }
 
@@ -63,13 +67,16 @@ func (wp *WorkerPool) Cap() int {
 }
 
 // Submit submits f for processing by a worker. The given id is useful for
-// identifying the task once it is completed.
+// identifying the task once it is completed. The task f must return when the
+// context ctx is cancelled.
+//
 // Submit blocks until a routine start processing the task.
+//
 // If a drain operation is in progress, ErrDraining is returned and the task
 // is not submitted for processing.
 // If the worker pool is closed, ErrClosed is returned and the task is not
 // submitted for processing.
-func (wp *WorkerPool) Submit(id string, f func() error) error {
+func (wp *WorkerPool) Submit(id string, f func(ctx context.Context) error) error {
 	wp.mu.Lock()
 	if wp.closed {
 		wp.mu.Unlock()
@@ -124,8 +131,9 @@ func (wp *WorkerPool) Drain() ([]Task, error) {
 }
 
 // Close closes the worker pool, rendering it unable to process new tasks.
-// It should be called after a call to Drain and the worker pool is no longer
-// needed. Close will return ErrClosed if it has already been called.
+// Close sends the cancellation signal to any running task and waits for all
+// workers, if any, to return.
+// Close will return ErrClosed if it has already been called.
 func (wp *WorkerPool) Close() error {
 	wp.mu.Lock()
 	if wp.closed {
@@ -135,6 +143,7 @@ func (wp *WorkerPool) Close() error {
 	wp.closed = true
 	wp.mu.Unlock()
 
+	wp.cancel()
 	wp.wg.Wait()
 
 	// At this point, all routines have returned. This means that Submit is not
@@ -148,14 +157,14 @@ func (wp *WorkerPool) Close() error {
 
 // run loops over the tasks channel and starts processing routines. It should
 // only be called once during the lifetime of a WorkerPool.
-func (wp *WorkerPool) run() {
+func (wp *WorkerPool) run(ctx context.Context) {
 	for t := range wp.tasks {
 		t := t
 		wp.results = append(wp.results, t)
 		wp.workers <- struct{}{}
 		go func() {
 			defer wp.wg.Done()
-			t.err = t.run()
+			t.err = t.run(ctx)
 			<-wp.workers
 		}()
 	}

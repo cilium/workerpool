@@ -14,7 +14,10 @@
 
 package workerpool
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 // Task is a unit of work.
 type Task interface {
@@ -27,7 +30,7 @@ type Task interface {
 
 type task struct {
 	id  string
-	run func() error
+	run func(context.Context) error
 	err error
 }
 

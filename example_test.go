@@ -15,6 +15,7 @@
 package workerpool
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
@@ -40,7 +41,7 @@ func Example() {
 		id := fmt.Sprintf("task #%d", i)
 		// Use Submit to submit tasks for processing. Submit blocks when no
 		// worker is available to pick up the task.
-		err := wp.Submit(id, func() error {
+		err := wp.Submit(id, func(_ context.Context) error {
 			fmt.Println("isprime", n)
 			if IsPrime(n) {
 				fmt.Println(n, "is prime!")

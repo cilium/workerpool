@@ -100,7 +100,7 @@ func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
 	// NOTE: schedule one more task than we have workers, hence n+1.
 	for i := 0; i < n+1; i++ {
 		id := fmt.Sprintf("task #%2d", i)
-		err := wp.Submit(id, func() error {
+		err := wp.Submit(id, func(_ context.Context) error {
 			working <- struct{}{}
 			<-ctx.Done()
 			return nil
@@ -140,7 +140,7 @@ func TestWorkerPool(t *testing.T) {
 	wg.Add(numTasks - 1)
 	for i := 0; i < numTasks-1; i++ {
 		id := fmt.Sprintf("task #%2d", i)
-		err := wp.Submit(id, func() error {
+		err := wp.Submit(id, func(_ context.Context) error {
 			defer wg.Done()
 			working <- struct{}{}
 			done <- struct{}{}
@@ -163,7 +163,7 @@ func TestWorkerPool(t *testing.T) {
 	go func() {
 		id := fmt.Sprintf("task #%2d", numTasks-1)
 		ready <- struct{}{}
-		wp.Submit(id, func() error {
+		wp.Submit(id, func(_ context.Context) error {
 			defer wg.Done()
 			done <- struct{}{}
 			return nil
@@ -227,7 +227,7 @@ func TestConcurrentDrain(t *testing.T) {
 	wg.Add(numTasks)
 	for i := 0; i < numTasks; i++ {
 		id := fmt.Sprintf("task #%2d", i)
-		err := wp.Submit(id, func() error {
+		err := wp.Submit(id, func(_ context.Context) error {
 			defer wg.Done()
 			done <- struct{}{}
 			return nil
@@ -331,4 +331,33 @@ func TestWorkerPoolManyClose(t *testing.T) {
 	if err := wp.Close(); err != ErrClosed {
 		t.Fatalf("got %v; want %v", err, ErrClosed)
 	}
+}
+
+func TestWorkerPoolClose(t *testing.T) {
+	n := runtime.NumCPU()
+	wp := New(n)
+
+	// working is written to by each task as soon as possible.
+	working := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		id := fmt.Sprintf("task #%2d", i)
+		wp.Submit(id, func(ctx context.Context) error {
+			working <- struct{}{}
+			<-ctx.Done()
+			wg.Done()
+			return ctx.Err()
+		})
+	}
+
+	// ensure n workers are busy
+	for i := 0; i < n; i++ {
+		<-working
+	}
+
+	if err := wp.Close(); err != nil {
+		t.Fatalf("unexpected error on Close(): %s", err)
+	}
+	wg.Wait() // all routines should have returned
 }
