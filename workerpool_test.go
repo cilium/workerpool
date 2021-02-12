@@ -74,34 +74,23 @@ func TestWorkerPoolCap(t *testing.T) {
 func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
 	n := runtime.NumCPU()
 	wp := New(n)
-	defer wp.Close()
-
-	// working is written to by each task as soon as possible.
-	working := make(chan struct{})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	// cleanup is a bit tricky. We need to free up all tasks that will attempt
-	// to write to the working channel.
 	defer func() {
-		// call cancel first to ensure that no worker is waiting on the
-		// context.
-		cancel()
-		// all remaining tasks now can block on writing to the working channel,
-		// so drain them all.
-		for {
-			select {
-			case <-working:
-			case <-time.After(100 * time.Millisecond):
-				return
-			}
+		if err := wp.Close(); err != nil {
+			t.Fatalf("unexpected error %v", err)
 		}
 	}()
 
+	// working is written to by each task as soon as possible.
+	working := make(chan struct{})
 	// NOTE: schedule one more task than we have workers, hence n+1.
 	for i := 0; i < n+1; i++ {
 		id := fmt.Sprintf("task #%2d", i)
-		err := wp.Submit(id, func(_ context.Context) error {
-			working <- struct{}{}
+		err := wp.Submit(id, func(ctx context.Context) error {
+			select {
+			case working <- struct{}{}:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 			<-ctx.Done()
 			return nil
 		})
