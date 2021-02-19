@@ -4,9 +4,8 @@ Package workerpool implements a concurrency limiting worker pool. Worker
 routines are spawned on demand as tasks are submitted.
 
 This package is mostly useful when tasks are CPU bound and spawning too many
-routines would be detrimental to performances.
-
-**WARNING**: The API is still experimental and subject to change.
+routines would be detrimental to performance. It features a straightforward API
+and no external dependencies. See the section below for a usage example.
 
 ## Example
 
