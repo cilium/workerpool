@@ -24,6 +24,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v2
     - name: Format
+      if: matrix.go-version >= '1.16'
       run: test -z $(gofmt -l .)
     - name: Build
       run: go build
