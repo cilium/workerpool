@@ -1,5 +1,9 @@
 # Workerpool
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/cilium/workerpool.svg)](https://pkg.go.dev/github.com/cilium/workerpool)
+[![CI](https://github.com/cilium/workerpool/workflows/Tests/badge.svg)](https://github.com/cilium/workerpool/actions?query=workflow%3ATests)
+[![Go Report Card](https://goreportcard.com/badge/github.com/cilium/workerpool)](https://goreportcard.com/report/github.com/cilium/workerpool)
+
 Package workerpool implements a concurrency limiting worker pool. Worker
 routines are spawned on demand as tasks are submitted.
 
