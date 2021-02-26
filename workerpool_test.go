@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workerpool
+package workerpool_test
 
 import (
 	"context"
@@ -21,6 +21,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/cilium/workerpool"
 )
 
 func TestWorkerPoolNewPanics(t *testing.T) {
@@ -31,7 +33,7 @@ func TestWorkerPoolNewPanics(t *testing.T) {
 				t.Errorf("New(%d) should panic()", n)
 			}
 		}()
-		_ = New(n)
+		_ = workerpool.New(n)
 	}
 
 	testWorkerPoolNewPanics(0)
@@ -39,29 +41,29 @@ func TestWorkerPoolNewPanics(t *testing.T) {
 }
 
 func TestWorkerPoolTasksCapacity(t *testing.T) {
-	wp := New(runtime.NumCPU())
+	wp := workerpool.New(runtime.NumCPU())
 	defer wp.Close()
 
-	if c := cap(wp.tasks); c != 0 {
+	if c := wp.TasksCap(); c != 0 {
 		t.Errorf("tasks channel capacity is %d; want 0 (an unbuffered channel)", c)
 	}
 }
 
 func TestWorkerPoolCap(t *testing.T) {
-	one := New(1)
+	one := workerpool.New(1)
 	defer one.Close()
 	if c := one.Cap(); c != 1 {
 		t.Errorf("got %d; want %d", c, 1)
 	}
 
 	n := runtime.NumCPU()
-	ncpu := New(n)
+	ncpu := workerpool.New(n)
 	defer ncpu.Close()
 	if c := ncpu.Cap(); c != n {
 		t.Errorf("got %d; want %d", c, n)
 	}
 
-	fortyTwo := New(42)
+	fortyTwo := workerpool.New(42)
 	defer fortyTwo.Close()
 	if c := fortyTwo.Cap(); c != 42 {
 		t.Errorf("got %d; want %d", c, 42)
@@ -69,7 +71,7 @@ func TestWorkerPoolCap(t *testing.T) {
 }
 
 func TestWorkerPoolLen(t *testing.T) {
-	wp := New(1)
+	wp := workerpool.New(1)
 	defer wp.Close()
 	if l := wp.Len(); l != 0 {
 		t.Errorf("got %d; want %d", l, 0)
@@ -93,7 +95,7 @@ func TestWorkerPoolLen(t *testing.T) {
 // submitted.
 func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
 	n := runtime.NumCPU()
-	wp := New(n)
+	wp := workerpool.New(n)
 	defer func() {
 		if err := wp.Close(); err != nil {
 			t.Fatalf("unexpected error %v", err)
@@ -139,7 +141,7 @@ func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
 
 func TestWorkerPool(t *testing.T) {
 	n := runtime.NumCPU()
-	wp := New(n)
+	wp := workerpool.New(n)
 
 	numTasks := n + 2
 	done := make(chan struct{})
@@ -228,7 +230,7 @@ func TestWorkerPool(t *testing.T) {
 
 func TestConcurrentDrain(t *testing.T) {
 	n := runtime.NumCPU()
-	wp := New(n)
+	wp := workerpool.New(n)
 
 	numTasks := n + 1
 	done := make(chan struct{})
@@ -273,13 +275,13 @@ func TestConcurrentDrain(t *testing.T) {
 	<-ready
 	time.Sleep(10 * time.Millisecond)
 
-	if err := wp.Submit("", nil); err != ErrDraining {
-		t.Errorf("submit: got '%v', want '%v'", err, ErrDraining)
+	if err := wp.Submit("", nil); err != workerpool.ErrDraining {
+		t.Errorf("submit: got '%v', want '%v'", err, workerpool.ErrDraining)
 	}
 
 	results, err := wp.Drain()
-	if err != ErrDraining {
-		t.Errorf("drain: got '%v', want '%v'", err, ErrDraining)
+	if err != workerpool.ErrDraining {
+		t.Errorf("drain: got '%v', want '%v'", err, workerpool.ErrDraining)
 	}
 	if results != nil {
 		t.Errorf("drain: got '%v', want '%v'", results, nil)
@@ -306,11 +308,11 @@ func TestConcurrentDrain(t *testing.T) {
 }
 
 func TestWorkerPoolDrainAfterClose(t *testing.T) {
-	wp := New(runtime.NumCPU())
+	wp := workerpool.New(runtime.NumCPU())
 	wp.Close()
 	tasks, err := wp.Drain()
-	if err != ErrClosed {
-		t.Errorf("got %v; want %v", err, ErrClosed)
+	if err != workerpool.ErrClosed {
+		t.Errorf("got %v; want %v", err, workerpool.ErrClosed)
 	}
 	if tasks != nil {
 		t.Errorf("got %v as tasks; want %v", tasks, nil)
@@ -318,15 +320,15 @@ func TestWorkerPoolDrainAfterClose(t *testing.T) {
 }
 
 func TestWorkerPoolSubmitAfterClose(t *testing.T) {
-	wp := New(runtime.NumCPU())
+	wp := workerpool.New(runtime.NumCPU())
 	wp.Close()
-	if err := wp.Submit("dummy", nil); err != ErrClosed {
-		t.Fatalf("got %v; want %v", err, ErrClosed)
+	if err := wp.Submit("dummy", nil); err != workerpool.ErrClosed {
+		t.Fatalf("got %v; want %v", err, workerpool.ErrClosed)
 	}
 }
 
 func TestWorkerPoolManyClose(t *testing.T) {
-	wp := New(runtime.NumCPU())
+	wp := workerpool.New(runtime.NumCPU())
 
 	// first call to Close() should not return an error.
 	if err := wp.Close(); err != nil {
@@ -334,17 +336,17 @@ func TestWorkerPoolManyClose(t *testing.T) {
 	}
 
 	// calling Close() more than once should always return an error.
-	if err := wp.Close(); err != ErrClosed {
-		t.Fatalf("got %v; want %v", err, ErrClosed)
+	if err := wp.Close(); err != workerpool.ErrClosed {
+		t.Fatalf("got %v; want %v", err, workerpool.ErrClosed)
 	}
-	if err := wp.Close(); err != ErrClosed {
-		t.Fatalf("got %v; want %v", err, ErrClosed)
+	if err := wp.Close(); err != workerpool.ErrClosed {
+		t.Fatalf("got %v; want %v", err, workerpool.ErrClosed)
 	}
 }
 
 func TestWorkerPoolClose(t *testing.T) {
 	n := runtime.NumCPU()
-	wp := New(n)
+	wp := workerpool.New(n)
 
 	// working is written to by each task as soon as possible.
 	working := make(chan struct{})
