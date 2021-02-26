@@ -68,6 +68,26 @@ func TestWorkerPoolCap(t *testing.T) {
 	}
 }
 
+func TestWorkerPoolLen(t *testing.T) {
+	wp := New(1)
+	defer wp.Close()
+	if l := wp.Len(); l != 0 {
+		t.Errorf("got %d; want %d", l, 0)
+	}
+
+	err := wp.Submit("", func(ctx context.Context) error {
+		<-ctx.Done()
+		return ctx.Err()
+	})
+	if err != nil {
+		t.Fatalf("failed to submit task: %v", err)
+	}
+
+	if l := wp.Len(); l != 1 {
+		t.Errorf("got %d; want %d", l, 1)
+	}
+}
+
 // TestWorkerPoolConcurrentTasksCount ensure that there is at least, but no
 // more than n workers running in the pool when more than n tasks are
 // submitted.
