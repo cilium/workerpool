@@ -88,6 +88,13 @@ func TestWorkerPoolLen(t *testing.T) {
 	if l := wp.Len(); l != 1 {
 		t.Errorf("got %d; want %d", l, 1)
 	}
+
+	if err := wp.Close(); err != nil {
+		t.Errorf("close: got '%v', want no error", err)
+	}
+	if l := wp.Len(); l != 0 {
+		t.Errorf("got %d; want %d", l, 0)
+	}
 }
 
 // TestWorkerPoolConcurrentTasksCount ensure that there is at least, but no
