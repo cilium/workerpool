@@ -90,7 +90,7 @@ func TestWorkerPoolLen(t *testing.T) {
 	}
 
 	if err := wp.Close(); err != nil {
-		t.Errorf("close: got '%v', want no error", err)
+		t.Fatalf("close: got '%v', want no error", err)
 	}
 	if l := wp.Len(); l != 0 {
 		t.Errorf("got %d; want %d", l, 0)
