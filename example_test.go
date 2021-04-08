@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package workerpool
+package workerpool_test
 
 import (
 	"context"
 	"fmt"
 	"os"
 	"runtime"
+
+	"github.com/cilium/workerpool"
 )
 
 // IsPrime returns true if n is prime, false otherwise.
@@ -35,7 +37,7 @@ func IsPrime(n int64) bool {
 }
 
 func Example() {
-	wp := New(runtime.NumCPU())
+	wp := workerpool.New(runtime.NumCPU())
 	for i, n := 0, int64(1_000_000_000_000_000_000); n < 1_000_000_000_000_000_100; i, n = i+1, n+1 {
 		n := n // https://golang.org/doc/faq#closures_and_goroutines
 		id := fmt.Sprintf("task #%d", i)
