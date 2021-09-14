@@ -181,11 +181,14 @@ func TestWorkerPool(t *testing.T) {
 	go func() {
 		id := fmt.Sprintf("task #%2d", numTasks-1)
 		ready <- struct{}{}
-		wp.Submit(id, func(_ context.Context) error {
+		err := wp.Submit(id, func(_ context.Context) error {
 			defer wg.Done()
 			done <- struct{}{}
 			return nil
 		})
+		if err != nil {
+			t.Errorf("failed to submit task '%s': %v", id, err)
+		}
 		sc <- struct{}{}
 	}()
 
@@ -361,12 +364,15 @@ func TestWorkerPoolClose(t *testing.T) {
 	wg.Add(n)
 	for i := 0; i < n; i++ {
 		id := fmt.Sprintf("task #%2d", i)
-		wp.Submit(id, func(ctx context.Context) error {
+		err := wp.Submit(id, func(ctx context.Context) error {
 			working <- struct{}{}
 			<-ctx.Done()
 			wg.Done()
 			return ctx.Err()
 		})
+		if err != nil {
+			t.Errorf("failed to submit task '%s': %v", id, err)
+		}
 	}
 
 	// ensure n workers are busy
