@@ -16,6 +16,7 @@ package workerpool_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
@@ -285,12 +286,12 @@ func TestConcurrentDrain(t *testing.T) {
 	<-ready
 	time.Sleep(10 * time.Millisecond)
 
-	if err := wp.Submit("", nil); err != workerpool.ErrDraining {
+	if err := wp.Submit("", nil); !errors.Is(err, workerpool.ErrDraining) {
 		t.Errorf("submit: got '%v', want '%v'", err, workerpool.ErrDraining)
 	}
 
 	results, err := wp.Drain()
-	if err != workerpool.ErrDraining {
+	if !errors.Is(err, workerpool.ErrDraining) {
 		t.Errorf("drain: got '%v', want '%v'", err, workerpool.ErrDraining)
 	}
 	if results != nil {
@@ -321,7 +322,7 @@ func TestWorkerPoolDrainAfterClose(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 	wp.Close()
 	tasks, err := wp.Drain()
-	if err != workerpool.ErrClosed {
+	if !errors.Is(err, workerpool.ErrClosed) {
 		t.Errorf("got %v; want %v", err, workerpool.ErrClosed)
 	}
 	if tasks != nil {
@@ -332,7 +333,7 @@ func TestWorkerPoolDrainAfterClose(t *testing.T) {
 func TestWorkerPoolSubmitAfterClose(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 	wp.Close()
-	if err := wp.Submit("dummy", nil); err != workerpool.ErrClosed {
+	if err := wp.Submit("dummy", nil); !errors.Is(err, workerpool.ErrClosed) {
 		t.Fatalf("got %v; want %v", err, workerpool.ErrClosed)
 	}
 }
@@ -346,10 +347,10 @@ func TestWorkerPoolManyClose(t *testing.T) {
 	}
 
 	// calling Close() more than once should always return an error.
-	if err := wp.Close(); err != workerpool.ErrClosed {
+	if err := wp.Close(); !errors.Is(err, workerpool.ErrClosed) {
 		t.Fatalf("got %v; want %v", err, workerpool.ErrClosed)
 	}
-	if err := wp.Close(); err != workerpool.ErrClosed {
+	if err := wp.Close(); !errors.Is(err, workerpool.ErrClosed) {
 		t.Fatalf("got %v; want %v", err, workerpool.ErrClosed)
 	}
 }
