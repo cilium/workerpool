@@ -330,6 +330,30 @@ func TestWorkerPoolDrainAfterClose(t *testing.T) {
 	}
 }
 
+func TestWorkerPoolSubmitNil(t *testing.T) {
+	wp := workerpool.New(runtime.NumCPU())
+	defer wp.Close()
+	id := "nothing"
+	if err := wp.Submit(id, nil); err != nil {
+		t.Fatalf("got %v; want no error", err)
+	}
+	tasks, err := wp.Drain()
+	if err != nil {
+		t.Errorf("got %v; want no error", err)
+	}
+	if n := len(tasks); n != 1 {
+		t.Errorf("got %v tasks; want 1", n)
+	}
+	r := tasks[0]
+	if s := r.String(); s != id {
+		t.Errorf("String: got '%s', want '%s'", s, id)
+	}
+	if err := r.Err(); err != nil {
+		t.Errorf("Err: got '%v', want no error", err)
+	}
+
+}
+
 func TestWorkerPoolSubmitAfterClose(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 	wp.Close()

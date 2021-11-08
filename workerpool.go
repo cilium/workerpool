@@ -182,7 +182,9 @@ func (wp *WorkerPool) run(ctx context.Context) {
 		wp.workers <- struct{}{}
 		go func() {
 			defer wp.wg.Done()
-			result.err = t.run(ctx)
+			if t.run != nil {
+				result.err = t.run(ctx)
+			}
 			<-wp.workers
 		}()
 	}
