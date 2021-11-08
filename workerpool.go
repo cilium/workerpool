@@ -47,13 +47,14 @@ var (
 // submitted tasks concurrently. The number of concurrent routines never
 // exceeds the specified limit.
 type WorkerPool struct {
-	workers  chan struct{}
-	tasks    chan *task
-	results  []Task
-	wg       sync.WaitGroup
+	workers chan struct{}
+	tasks   chan *task
+	cancel  context.CancelFunc
+	results []Task
+	wg      sync.WaitGroup
+
 	mu       sync.Mutex
 	draining bool
-	cancel   context.CancelFunc
 	closed   bool
 }
 
