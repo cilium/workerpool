@@ -78,7 +78,9 @@ func TestWorkerPoolLen(t *testing.T) {
 		t.Errorf("got %d; want %d", l, 0)
 	}
 
+	submitted := make(chan struct{})
 	err := wp.Submit("", func(ctx context.Context) error {
+		close(submitted)
 		<-ctx.Done()
 		return ctx.Err()
 	})
@@ -86,6 +88,7 @@ func TestWorkerPoolLen(t *testing.T) {
 		t.Fatalf("failed to submit task: %v", err)
 	}
 
+	<-submitted
 	if l := wp.Len(); l != 1 {
 		t.Errorf("got %d; want %d", l, 1)
 	}
