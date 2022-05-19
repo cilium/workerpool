@@ -93,9 +93,8 @@ func (wp *WorkerPool) Submit(id string, f func(ctx context.Context) error) error
 		wp.mu.Unlock()
 		return ErrDraining
 	}
-
-	wp.mu.Unlock()
 	wp.wg.Add(1)
+	wp.mu.Unlock()
 	wp.tasks <- &task{
 		id:  id,
 		run: f,
