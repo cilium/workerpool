@@ -4,12 +4,15 @@
 linters:
   disable-all: true
   enable:
+    - asasalint
     - asciicheck
     - bidichk
     - bodyclose
     - containedctx
+    - contextcheck
     - cyclop
     - deadcode
+    - decorder
     - dogsled
     - dupl
     - durationcheck
@@ -25,20 +28,23 @@ linters:
     - godot
     - goerr113
     - gofmt
+    - goheader
     - goimports
     - gomnd
+    - goprintffuncname
     - gosec
     - gosimple
     - govet
     - grouper
-    - ifshort
     - ineffassign
     - ireturn
     - makezero
     - misspell
+    - nakedret
     - nestif
     - nilerr
     - nilnil
+    - nosprintfhostport
     - prealloc
     - predeclared
     - revive
@@ -52,12 +58,18 @@ linters:
     - unconvert
     - unparam
     - unused
+    - usestdlibvars
     - varcheck
     - wastedassign
 
 linters-settings:
   cyclop:
     skip-tests: true
+
+  goheader:
+    template: |-
+      SPDX-License-Identifier: Apache-2.0
+      Copyright Authors of Cilium
   gosimple:
     go: "1.18"
   govet:
