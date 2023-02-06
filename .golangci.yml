@@ -25,6 +25,7 @@ linters:
     - exhaustive
     - exportloopref
     - forcetypeassert
+    - gocheckcompilerdirectives
     - gocognit
     - goconst
     - gocritic
@@ -44,6 +45,7 @@ linters:
     - ireturn
     - makezero
     - misspell
+    - musttag
     - nakedret
     - nestif
     - nilerr
