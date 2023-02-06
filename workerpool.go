@@ -75,7 +75,8 @@ func (wp *WorkerPool) Len() int {
 
 // Submit submits f for processing by a worker. The given id is useful for
 // identifying the task once it is completed. The task f must return when the
-// context ctx is cancelled.
+// context ctx is cancelled. The context passed to task f is cancelled when
+// Close is called.
 //
 // Submit blocks until a routine start processing the task.
 //
