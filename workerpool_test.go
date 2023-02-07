@@ -402,3 +402,60 @@ func TestWorkerPoolClose(t *testing.T) {
 	}
 	wg.Wait() // all routines should have returned
 }
+
+func TestWorkerPoolNewWithContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	n := runtime.NumCPU()
+	wp := workerpool.NewWithContext(ctx, n)
+
+	// working is written to by each task as soon as possible.
+	working := make(chan struct{})
+	var wg sync.WaitGroup
+	// Create n tasks waiting on the context to be cancelled.
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		id := fmt.Sprintf("task #%2d", i)
+		err := wp.Submit(id, func(ctx context.Context) error {
+			working <- struct{}{}
+			<-ctx.Done()
+			wg.Done()
+			return ctx.Err()
+		})
+		if err != nil {
+			t.Errorf("failed to submit task '%s': %v", id, err)
+		}
+	}
+
+	// ensure n workers are busy
+	for i := 0; i < n; i++ {
+		<-working
+	}
+
+	// cancel the parent context, which should complete all tasks.
+	cancel()
+	wg.Wait()
+
+	// Submitting a task once the parent context has been cancelled should
+	// succeed and give a cancelled context to the task. This is not ideal and
+	// might change in the future.
+	wg.Add(1)
+	id := "last"
+	err := wp.Submit(id, func(ctx context.Context) error {
+		defer wg.Done()
+		select {
+		case <-ctx.Done():
+		default:
+			t.Errorf("last task expected context to be cancelled")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Errorf("failed to submit task '%s': %v", id, err)
+	}
+
+	wg.Wait()
+
+	if err := wp.Close(); err != nil {
+		t.Errorf("close: got '%v', want no error", err)
+	}
+}
