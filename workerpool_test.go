@@ -120,7 +120,7 @@ func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
 	// working is written to by each task as soon as possible.
 	working := make(chan struct{})
 	// NOTE: schedule one more task than we have workers, hence n+1.
-	for i := 0; i < n+1; i++ {
+	for i := range n + 1 {
 		id := fmt.Sprintf("task #%2d", i)
 		err := wp.Submit(id, func(ctx context.Context) error {
 			select {
@@ -137,7 +137,7 @@ func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
 	}
 
 	// ensure that n workers are busy.
-	for i := 0; i < n; i++ {
+	for i := range n {
 		select {
 		case <-working:
 		case <-time.After(100 * time.Millisecond):
@@ -164,7 +164,7 @@ func TestWorkerPool(t *testing.T) {
 	working := make(chan struct{})
 	var wg sync.WaitGroup
 	wg.Add(numTasks - 1)
-	for i := 0; i < numTasks-1; i++ {
+	for i := range numTasks - 1 {
 		id := fmt.Sprintf("task #%2d", i)
 		err := wp.Submit(id, func(_ context.Context) error {
 			defer wg.Done()
@@ -178,7 +178,7 @@ func TestWorkerPool(t *testing.T) {
 	}
 
 	// ensure n workers are busy
-	for i := 0; i < n; i++ {
+	for range n {
 		<-working
 	}
 
@@ -231,7 +231,7 @@ func TestWorkerPool(t *testing.T) {
 
 	<-ready
 	// un-block the worker routines
-	for i := 0; i < numTasks-1; i++ {
+	for range numTasks - 1 {
 		<-done
 	}
 	// The last task was blocked in wp.run() and not yet scheduled on a worker.
@@ -254,7 +254,7 @@ func TestConcurrentDrain(t *testing.T) {
 	done := make(chan struct{})
 	var wg sync.WaitGroup
 	wg.Add(numTasks)
-	for i := 0; i < numTasks; i++ {
+	for i := range numTasks {
 		id := fmt.Sprintf("task #%2d", i)
 		err := wp.Submit(id, func(_ context.Context) error {
 			defer wg.Done()
@@ -306,7 +306,7 @@ func TestConcurrentDrain(t *testing.T) {
 	}
 
 	// un-block the worker routines to allow the test to complete
-	for i := 0; i < numTasks; i++ {
+	for range numTasks {
 		<-done
 	}
 
@@ -402,7 +402,7 @@ func TestWorkerPoolClose(t *testing.T) {
 	working := make(chan struct{})
 	var wg sync.WaitGroup
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		id := fmt.Sprintf("task #%2d", i)
 		err := wp.Submit(id, func(ctx context.Context) error {
 			working <- struct{}{}
@@ -416,7 +416,7 @@ func TestWorkerPoolClose(t *testing.T) {
 	}
 
 	// ensure n workers are busy
-	for i := 0; i < n; i++ {
+	for range n {
 		<-working
 	}
 
@@ -436,7 +436,7 @@ func TestWorkerPoolNewWithContext(t *testing.T) {
 	var wg sync.WaitGroup
 	// Create n tasks waiting on the context to be cancelled.
 	wg.Add(n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		id := fmt.Sprintf("task #%2d", i)
 		err := wp.Submit(id, func(ctx context.Context) error {
 			working <- struct{}{}
@@ -450,7 +450,7 @@ func TestWorkerPoolNewWithContext(t *testing.T) {
 	}
 
 	// ensure n workers are busy
-	for i := 0; i < n; i++ {
+	for range n {
 		<-working
 	}
 
