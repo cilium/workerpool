@@ -32,7 +32,11 @@ func TestWorkerPoolNewPanics(t *testing.T) {
 
 func TestWorkerPoolTasksCapacity(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
-	defer wp.Close()
+	defer func() {
+		if err := wp.Close(); err != nil {
+			t.Errorf("close: got '%v', want no error", err)
+		}
+	}()
 
 	if c := wp.TasksCap(); c != 0 {
 		t.Errorf("tasks channel capacity is %d; want 0 (an unbuffered channel)", c)
@@ -41,20 +45,32 @@ func TestWorkerPoolTasksCapacity(t *testing.T) {
 
 func TestWorkerPoolCap(t *testing.T) {
 	one := workerpool.New(1)
-	defer one.Close()
+	defer func() {
+		if err := one.Close(); err != nil {
+			t.Errorf("close: got '%v', want no error", err)
+		}
+	}()
 	if c := one.Cap(); c != 1 {
 		t.Errorf("got %d; want %d", c, 1)
 	}
 
 	n := runtime.NumCPU()
 	ncpu := workerpool.New(n)
-	defer ncpu.Close()
+	defer func() {
+		if err := ncpu.Close(); err != nil {
+			t.Errorf("close: got '%v', want no error", err)
+		}
+	}()
 	if c := ncpu.Cap(); c != n {
 		t.Errorf("got %d; want %d", c, n)
 	}
 
 	fortyTwo := workerpool.New(42)
-	defer fortyTwo.Close()
+	defer func() {
+		if err := fortyTwo.Close(); err != nil {
+			t.Errorf("close: got '%v', want no error", err)
+		}
+	}()
 	if c := fortyTwo.Cap(); c != 42 {
 		t.Errorf("got %d; want %d", c, 42)
 	}
@@ -62,7 +78,6 @@ func TestWorkerPoolCap(t *testing.T) {
 
 func TestWorkerPoolLen(t *testing.T) {
 	wp := workerpool.New(1)
-	defer wp.Close()
 	if l := wp.Len(); l != 0 {
 		t.Errorf("got %d; want %d", l, 0)
 	}
@@ -98,7 +113,7 @@ func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
 	wp := workerpool.New(n)
 	defer func() {
 		if err := wp.Close(); err != nil {
-			t.Fatalf("unexpected error %v", err)
+			t.Errorf("close: got '%v', want no error", err)
 		}
 	}()
 
@@ -312,7 +327,9 @@ func TestConcurrentDrain(t *testing.T) {
 
 func TestWorkerPoolDrainAfterClose(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
-	wp.Close()
+	if err := wp.Close(); err != nil {
+		t.Fatalf("close: got '%v', want no error", err)
+	}
 	tasks, err := wp.Drain()
 	if !errors.Is(err, workerpool.ErrClosed) {
 		t.Errorf("got %v; want %v", err, workerpool.ErrClosed)
@@ -324,7 +341,11 @@ func TestWorkerPoolDrainAfterClose(t *testing.T) {
 
 func TestWorkerPoolSubmitNil(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
-	defer wp.Close()
+	defer func() {
+		if err := wp.Close(); err != nil {
+			t.Errorf("close: got '%v', want no error", err)
+		}
+	}()
 	id := "nothing"
 	if err := wp.Submit(id, nil); err != nil {
 		t.Fatalf("got %v; want no error", err)
@@ -348,7 +369,9 @@ func TestWorkerPoolSubmitNil(t *testing.T) {
 
 func TestWorkerPoolSubmitAfterClose(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
-	wp.Close()
+	if err := wp.Close(); err != nil {
+		t.Fatalf("close: got '%v', want no error", err)
+	}
 	if err := wp.Submit("dummy", nil); !errors.Is(err, workerpool.ErrClosed) {
 		t.Fatalf("got %v; want %v", err, workerpool.ErrClosed)
 	}
@@ -398,7 +421,7 @@ func TestWorkerPoolClose(t *testing.T) {
 	}
 
 	if err := wp.Close(); err != nil {
-		t.Fatalf("unexpected error on Close(): %s", err)
+		t.Errorf("close: got '%v', want no error", err)
 	}
 	wg.Wait() // all routines should have returned
 }
