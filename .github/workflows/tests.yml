@@ -7,8 +7,8 @@ on:
       - v*
   pull_request:
     branches:
-    - master
-    - v*
+      - master
+      - v*
 
 jobs:
   build:
@@ -26,7 +26,7 @@ jobs:
     - name: Run static checks
       uses: golangci/golangci-lint-action@e0ebdd245eea59746bb0b28ea6a9871d3e35fbc9
       with:
-        version: v1.51.1
+        version: v1.64.5
         # use our .golangci.yml and configure output to be logged in the GHA, in addition to annotating the commit.
         # see https://github.com/golangci/golangci-lint-action/issues/119#issuecomment-981090648 for output
         args: --config=.golangci.yml --verbose --out-${NO_FUTURE}format colored-line-number --timeout 5m
