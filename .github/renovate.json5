@@ -27,4 +27,61 @@
   baseBranchPatterns: [
     'main',
   ],
+  postUpdateOptions: [
+    'gomodTidy',
+  ],
+  packageRules: [
+    {
+      groupName: 'all go module dependencies',
+      matchFileNames: [
+        'go.mod',
+        'go.sum',
+      ],
+      matchUpdateTypes: [
+        'major',
+        'minor',
+        'digest',
+        'patch',
+        'pin',
+        'pinDigest',
+      ],
+      labels: [
+        'area/vendor',
+        'enhancement',
+        'release-note/misc',
+      ],
+    },
+    {
+      groupName: 'all github action dependencies',
+      matchFileNames: [
+        '.github/workflows/**',
+      ],
+      matchUpdateTypes: [
+        'major',
+        'minor',
+        'digest',
+        'patch',
+        'pin',
+        'pinDigest',
+      ],
+      labels: [
+        'area/github-actions',
+        'enhancement',
+        'release-note/ci',
+      ],
+    },
+    {
+      groupName: 'Go',
+      matchDepNames: [
+        'docker.io/library/golang',
+        'library/golang',
+        'go',
+        'golang',
+      ],
+      addLabels: [
+        'area/build',
+        'release-note/misc',
+      ],
+    },
+  ],
 }
