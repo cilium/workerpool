@@ -15,6 +15,8 @@ import (
 	"github.com/cilium/workerpool"
 )
 
+var errTask = errors.New("task error")
+
 func TestWorkerPoolNewPanics(t *testing.T) {
 	// helper expecting New(n) to panic.
 	testWorkerPoolNewPanics := func(n int) {
@@ -28,6 +30,15 @@ func TestWorkerPoolNewPanics(t *testing.T) {
 
 	testWorkerPoolNewPanics(0)
 	testWorkerPoolNewPanics(-1)
+}
+
+func TestWithResultCallbackNilPanics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("WithResultCallback(nil) should panic()")
+		}
+	}()
+	workerpool.WithResultCallback(nil)
 }
 
 func TestWorkerPoolTasksCapacity(t *testing.T) {
@@ -339,6 +350,21 @@ func TestWorkerPoolDrainAfterClose(t *testing.T) {
 	}
 }
 
+func TestWorkerPoolDrainAfterCloseWithCallback(t *testing.T) {
+	wp := workerpool.New(runtime.NumCPU(), workerpool.WithResultCallback(func(workerpool.Result) {}))
+	if err := wp.Close(); err != nil {
+		t.Fatalf("close: got '%v', want no error", err)
+	}
+	// ErrClosed must take precedence over ErrCallbackSet.
+	tasks, err := wp.Drain()
+	if !errors.Is(err, workerpool.ErrClosed) {
+		t.Errorf("got %v; want %v", err, workerpool.ErrClosed)
+	}
+	if tasks != nil {
+		t.Errorf("got %v as tasks; want %v", tasks, nil)
+	}
+}
+
 func TestWorkerPoolSubmitNil(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 	defer func() {
@@ -365,6 +391,32 @@ func TestWorkerPoolSubmitNil(t *testing.T) {
 		t.Errorf("Err: got '%v', want no error", err)
 	}
 
+}
+
+func TestWorkerPoolSubmitNilWithCallback(t *testing.T) {
+	id := "nothing"
+	var got workerpool.Result
+	wp := workerpool.New(runtime.NumCPU(), workerpool.WithResultCallback(func(r workerpool.Result) {
+		got = r
+	}))
+	if err := wp.Submit(id, nil); err != nil {
+		t.Fatalf("got %v; want no error", err)
+	}
+	if err := wp.Close(); err != nil {
+		t.Fatalf("close: got '%v', want no error", err)
+	}
+	if got == nil {
+		t.Fatal("callback was not invoked")
+	}
+	if s := got.String(); s != id {
+		t.Errorf("String: got '%s', want '%s'", s, id)
+	}
+	if err := got.Err(); err != nil {
+		t.Errorf("Err: got '%v', want no error", err)
+	}
+	if got.Duration() < 0 {
+		t.Errorf("Duration: got %v, want >= 0", got.Duration())
+	}
 }
 
 func TestWorkerPoolSubmitAfterClose(t *testing.T) {
@@ -510,5 +562,69 @@ func TestWorkerPoolNewWithCancelledContext(t *testing.T) {
 	}
 	if len(results) != 0 {
 		t.Errorf("drain: got %d results, want 0", len(results))
+	}
+}
+
+func TestWorkerPoolWithResultCallback(t *testing.T) {
+	n := runtime.NumCPU()
+
+	var mu sync.Mutex
+	var got []workerpool.Result
+
+	wp := workerpool.New(n, workerpool.WithResultCallback(func(r workerpool.Result) {
+		mu.Lock()
+		defer mu.Unlock()
+		got = append(got, r)
+	}))
+
+	numTasks := n + 2
+	wantErr := errTask
+	for i := range numTasks {
+		id := fmt.Sprintf("task #%2d", i)
+		var f func(context.Context) error
+		if i == 0 {
+			f = func(_ context.Context) error { return wantErr }
+		} else {
+			f = func(_ context.Context) error { return nil }
+		}
+		if err := wp.Submit(id, f); err != nil {
+			t.Fatalf("failed to submit task '%s': %v", id, err)
+		}
+	}
+
+	// Drain must return ErrCallbackSet.
+	tasks, err := wp.Drain()
+	if !errors.Is(err, workerpool.ErrCallbackSet) {
+		t.Errorf("drain: got %v, want %v", err, workerpool.ErrCallbackSet)
+	}
+	if tasks != nil {
+		t.Errorf("drain: got %v, want nil", tasks)
+	}
+
+	// Close waits for all in-flight tasks, so after it returns all callbacks
+	// have been invoked.
+	if err := wp.Close(); err != nil {
+		t.Fatalf("close: got '%v', want no error", err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(got) != numTasks {
+		t.Fatalf("callback: got %d results, want %d", len(got), numTasks)
+	}
+	for _, r := range got {
+		if r.Duration() < 0 {
+			t.Errorf("%s: Duration: got %v, want >= 0", r, r.Duration())
+		}
+		if r.String() == "task # 0" {
+			if !errors.Is(r.Err(), wantErr) {
+				t.Errorf("%s: Err: got %v, want %v", r, r.Err(), wantErr)
+			}
+		} else {
+			if r.Err() != nil {
+				t.Errorf("%s: Err: got %v, want nil", r, r.Err())
+			}
+		}
 	}
 }

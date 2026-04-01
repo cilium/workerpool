@@ -17,13 +17,15 @@ behavior.
 One caveat is that while the number of concurrently running workers is limited,
 task results are not and they accumulate until they are collected. Therefore,
 if a large number of tasks can be expected, the workerpool should be
-periodically drained (e.g. every 10k tasks).
+periodically drained (e.g. every 10k tasks). Alternatively,
+`WithResultCallback` can be used to process results as they complete, avoiding
+accumulation entirely.
 
 This package is mostly useful when tasks are CPU bound and spawning too many
 routines would be detrimental to performance. It features a straightforward API
-and no external dependencies. See the section below for a usage example.
+and no external dependencies. See the sections below for usage examples.
 
-## Example
+## Example with Drain
 
 ```go
 package main
@@ -63,8 +65,9 @@ func main() {
 			}
 			return nil
 		})
-		// Submit fails when the pool is closed (ErrClosed) or being drained
-		// (ErrDrained). Check for the error when appropriate.
+		// Submit fails when the pool is closed (ErrClosed), being drained
+		// (ErrDraining), or the parent context is done (context.Canceled).
+		// Check for the error when appropriate.
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
@@ -90,6 +93,57 @@ func main() {
 	// Close should be called once the worker pool is no longer necessary.
 	if err := wp.Close(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	}
+}
+```
+
+## Example with result callback
+
+Use `WithResultCallback` to process each result as it completes rather than
+accumulating them for a later `Drain` call. The callback receives a `Result`,
+which extends `Task` with a `Duration()` method reporting how long the task
+took to execute. This is useful for logging, metrics, or long-running pools
+where unbounded result accumulation is undesirable.
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"runtime"
+
+	"github.com/cilium/workerpool"
+)
+
+func main() {
+	wp := workerpool.New(runtime.NumCPU(), workerpool.WithResultCallback(func(r workerpool.Result) {
+		if err := r.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "task %s failed after %s: %v\n", r, r.Duration(), err)
+		} else {
+			fmt.Printf("task %s completed in %s\n", r, r.Duration())
+		}
+	}))
+
+	for i, n := 0, int64(1_000_000_000_000_000_000); n < 1_000_000_000_000_000_100; i, n = i+1, n+1 {
+		id := fmt.Sprintf("task #%d", i)
+		err := wp.Submit(id, func(_ context.Context) error {
+			if IsPrime(n) {
+				fmt.Println(n, "is prime!")
+			}
+			return nil
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Close waits for all in-flight tasks to complete before returning,
+	// ensuring all callback invocations have finished.
+	if err := wp.Close(); err != nil {
+		log.Fatal(err)
 	}
 }
 ```
