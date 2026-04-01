@@ -459,26 +459,56 @@ func TestWorkerPoolNewWithContext(t *testing.T) {
 	wg.Wait()
 
 	// Submitting a task once the parent context has been cancelled should
-	// succeed and give a cancelled context to the task. This is not ideal and
-	// might change in the future.
-	wg.Add(1)
-	id := "last"
-	err := wp.Submit(id, func(ctx context.Context) error {
-		defer wg.Done()
-		select {
-		case <-ctx.Done():
-		default:
-			t.Errorf("last task expected context to be cancelled")
+	// return context.Canceled and not submit the task. Call Submit twice to
+	// ensure the mutex is released on this path (a missing unlock would
+	// deadlock the second call).
+	for range 2 {
+		err := wp.Submit("last", nil)
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("submit after parent cancel: got %v, want %v", err, context.Canceled)
 		}
-		return nil
-	})
-	if err != nil {
-		t.Errorf("failed to submit task '%s': %v", id, err)
 	}
 
-	wg.Wait()
+	// Drain should return only the n tasks that completed, not the rejected ones.
+	results, err := wp.Drain()
+	if err != nil {
+		t.Errorf("drain: got '%v', want no error", err)
+	}
+	if len(results) != n {
+		t.Errorf("drain: got %d results, want %d", len(results), n)
+	}
 
 	if err := wp.Close(); err != nil {
 		t.Errorf("close: got '%v', want no error", err)
+	}
+}
+
+func TestWorkerPoolNewWithCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before creating the pool
+
+	wp := workerpool.NewWithContext(ctx, runtime.NumCPU())
+	defer func() {
+		if err := wp.Close(); err != nil {
+			t.Errorf("close: got '%v', want no error", err)
+		}
+	}()
+
+	// Submit should return context.Canceled immediately. Call twice to verify
+	// the mutex is released on this path.
+	for range 2 {
+		err := wp.Submit("task", nil)
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("submit with cancelled context: got %v, want %v", err, context.Canceled)
+		}
+	}
+
+	// No tasks should have been queued.
+	results, err := wp.Drain()
+	if err != nil {
+		t.Errorf("drain: got '%v', want no error", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("drain: got %d results, want 0", len(results))
 	}
 }
