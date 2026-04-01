@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         # Minimum required version per go.mod and latest two supported releases.
-        go-version: ["1.22", "1.25", "1.26"]
+        go-version: ["1.22", "oldstable", "stable"]
     runs-on: ubuntu-latest
     steps:
     - name: Install Go
