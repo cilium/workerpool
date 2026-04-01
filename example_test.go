@@ -6,6 +6,7 @@ package workerpool_test
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 
@@ -65,5 +66,34 @@ func Example() {
 	// Close should be called once the worker pool is no longer necessary.
 	if err := wp.Close(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	}
+}
+
+func ExampleWithResultCallback() {
+	wp := workerpool.New(runtime.NumCPU(), workerpool.WithResultCallback(func(r workerpool.Result) {
+		if err := r.Err(); err != nil {
+			fmt.Fprintf(os.Stderr, "task %s failed after %s: %v\n", r, r.Duration(), err)
+		} else {
+			fmt.Printf("task %s completed in %s\n", r, r.Duration())
+		}
+	}))
+
+	for i, n := 0, int64(1_000_000_000_000_000_000); n < 1_000_000_000_000_000_100; i, n = i+1, n+1 {
+		id := fmt.Sprintf("task #%d", i)
+		err := wp.Submit(id, func(_ context.Context) error {
+			if IsPrime(n) {
+				fmt.Println(n, "is prime!")
+			}
+			return nil
+		})
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Close waits for all in-flight tasks to complete before returning,
+	// ensuring all callback invocations have finished.
+	if err := wp.Close(); err != nil {
+		log.Fatal(err)
 	}
 }
