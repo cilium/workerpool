@@ -38,6 +38,7 @@ var (
 type WorkerPool struct {
 	workers chan struct{}
 	tasks   chan *task
+	done    <-chan struct{}
 	cancel  context.CancelFunc
 	results []Task
 	wg      sync.WaitGroup
@@ -65,6 +66,7 @@ func NewWithContext(ctx context.Context, n int) *WorkerPool {
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	wp.cancel = cancel
+	wp.done = ctx.Done()
 	go wp.run(ctx)
 	return wp
 }
@@ -82,7 +84,7 @@ func (wp *WorkerPool) Len() int {
 // Submit submits f for processing by a worker. The given id is useful for
 // identifying the task once it is completed. The task f must return when the
 // context ctx is cancelled. The context passed to task f is cancelled when
-// Close is called.
+// Close is called or when the parent context passed to NewWithContext is done.
 //
 // Submit blocks until a routine start processing the task.
 //
@@ -90,6 +92,8 @@ func (wp *WorkerPool) Len() int {
 // is not submitted for processing.
 // If the worker pool is closed, ErrClosed is returned and the task is not
 // submitted for processing.
+// If the parent context is done, context.Canceled is returned and the task is
+// not submitted for processing.
 func (wp *WorkerPool) Submit(id string, f func(ctx context.Context) error) error {
 	wp.mu.Lock()
 	if wp.closed {
@@ -99,6 +103,12 @@ func (wp *WorkerPool) Submit(id string, f func(ctx context.Context) error) error
 	if wp.draining {
 		wp.mu.Unlock()
 		return ErrDraining
+	}
+	select {
+	case <-wp.done:
+		wp.mu.Unlock()
+		return context.Canceled
+	default:
 	}
 	wp.wg.Add(1)
 	wp.mu.Unlock()
