@@ -28,7 +28,7 @@ func IsPrime(n int64) bool {
 
 func Example() {
 	wp := workerpool.New(runtime.NumCPU())
-	for i, n := 0, int64(1_000_000_000_000_000_000); n < 1_000_000_000_000_000_100; i, n = i+1, n+1 {
+	for i, n := 0, int64(1_000_000_000_000_000_000); i < 100; i, n = i+1, n+1 {
 		id := fmt.Sprintf("task #%d", i)
 		// Use Submit to submit tasks for processing. Submit blocks when no
 		// worker is available to pick up the task.
@@ -78,7 +78,7 @@ func ExampleWithResultCallback() {
 		}
 	}))
 
-	for i, n := 0, int64(1_000_000_000_000_000_000); n < 1_000_000_000_000_000_100; i, n = i+1, n+1 {
+	for i, n := 0, int64(1_000_000_000_000_000_000); i < 100; i, n = i+1, n+1 {
 		id := fmt.Sprintf("task #%d", i)
 		err := wp.Submit(id, func(_ context.Context) error {
 			if IsPrime(n) {
