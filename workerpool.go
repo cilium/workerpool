@@ -151,6 +151,11 @@ func (wp *WorkerPool) Submit(id string, f func(ctx context.Context) error) error
 // Drain waits until all tasks are completed. This operation prevents
 // submitting new tasks to the worker pool. Drain returns the results of the
 // tasks that have been processed.
+//
+// Unlike Close, Drain does not cancel task contexts. Tasks run to completion
+// naturally. After Drain, the pool can be closed with Close (which will not
+// cancel any tasks since none are running) or more tasks can be submitted.
+//
 // If a drain operation is already in progress, ErrDraining is returned.
 // If the worker pool is closed, ErrClosed is returned.
 // If a result callback is set via WithResultCallback, ErrCallbackSet is returned.
@@ -196,7 +201,14 @@ func (wp *WorkerPool) Drain() ([]Task, error) {
 // workers, if any, to return. When a result callback is set via
 // WithResultCallback, all callback invocations are guaranteed to have completed
 // before Close returns.
-// Close will return ErrClosed if it has already been called.
+//
+// Close will return ErrClosed if it has already been called. This makes it safe
+// to use with defer immediately after creating the pool (for cleanup on early
+// returns) while still calling Close explicitly to check for errors.
+//
+// Note: Close cancels running tasks via context, while Drain waits for tasks to
+// complete without cancellation. If you want tasks to finish naturally, call
+// Drain before Close.
 func (wp *WorkerPool) Close() error {
 	wp.mu.Lock()
 	if wp.closed {

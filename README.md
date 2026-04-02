@@ -54,6 +54,11 @@ func IsPrime(n int64) bool {
 
 func main() {
 	wp := workerpool.New(runtime.NumCPU())
+	// Defer Close to ensure cleanup on early return (e.g., errors during Submit).
+	// Close sends cancellation to running tasks and waits for them to complete.
+	// It's safe to call Close multiple times; subsequent calls return ErrClosed.
+	defer func() { _ = wp.Close() }()
+
 	for i, n := 0, int64(1_000_000_000_000_000_000); i < 100; i, n = i+1, n+1 {
 		id := fmt.Sprintf("task #%d", i)
 		// Use Submit to submit tasks for processing. Submit blocks when no
@@ -90,7 +95,8 @@ func main() {
 		}
 	}
 
-	// Close should be called once the worker pool is no longer necessary.
+	// Close is called here explicitly to check for errors. The deferred Close
+	// will also run but returns ErrClosed (which we can ignore on defer).
 	if err := wp.Close(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
@@ -111,7 +117,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"runtime"
 
@@ -126,6 +131,7 @@ func main() {
 			fmt.Printf("task %s completed in %s\n", r, r.Duration())
 		}
 	}))
+	defer func() { _ = wp.Close() }()
 
 	for i, n := 0, int64(1_000_000_000_000_000_000); i < 100; i, n = i+1, n+1 {
 		id := fmt.Sprintf("task #%d", i)
@@ -136,14 +142,15 @@ func main() {
 			return nil
 		})
 		if err != nil {
-			log.Fatal(err)
+			fmt.Fprintln(os.Stderr, err)
+			return
 		}
 	}
 
 	// Close waits for all in-flight tasks to complete before returning,
 	// ensuring all callback invocations have finished.
 	if err := wp.Close(); err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 ```
