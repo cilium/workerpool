@@ -51,8 +51,9 @@ func Example() {
 			}
 			return nil
 		})
-		// Submit fails when the pool is closed (ErrClosed) or being drained
-		// (ErrDrained). Check for the error when appropriate.
+		// Submit fails when the pool is closed (ErrClosed), being drained
+		// (ErrDraining), or the parent context is done (context.Canceled).
+		// Check for the error when appropriate.
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
