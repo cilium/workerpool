@@ -42,9 +42,13 @@ var (
 type Option func(*WorkerPool)
 
 // WithResultCallback registers fn to be called each time a task completes.
-// When a callback is set, results are not accumulated internally and Drain
-// returns ErrCallbackSet. The callback may be invoked concurrently from
-// multiple goroutines; fn must be safe for concurrent use.
+//
+// When a callback is set, results are NOT accumulated internally. This means:
+//   - Drain() will return ErrCallbackSet instead of collecting results
+//   - Results are processed immediately upon completion, avoiding memory buildup
+//   - The callback fn may be invoked concurrently from multiple goroutines
+//
+// The callback fn must be safe for concurrent use.
 // WithResultCallback panics if fn is nil.
 func WithResultCallback(fn func(Result)) Option {
 	// TODO(v2): New/NewWithContext should return an error so that option
@@ -152,13 +156,17 @@ func (wp *WorkerPool) Submit(id string, f func(ctx context.Context) error) error
 // submitting new tasks to the worker pool. Drain returns the results of the
 // tasks that have been processed.
 //
+// Drain is incompatible with the WithResultCallback option. When a result
+// callback is configured, results are processed immediately upon completion
+// rather than being accumulated, so Drain returns ErrCallbackSet.
+//
 // Unlike Close, Drain does not cancel task contexts. Tasks run to completion
 // naturally. After Drain, the pool can be closed with Close (which will not
 // cancel any tasks since none are running) or more tasks can be submitted.
 //
-// If a drain operation is already in progress, ErrDraining is returned.
-// If the worker pool is closed, ErrClosed is returned.
-// If a result callback is set via WithResultCallback, ErrCallbackSet is returned.
+// ErrCallbackSet is returned if the WithResultCallback option is used.
+// ErrDraining is returned if a drain operation is already in progress.
+// ErrClosed is returned if the worker pool is closed.
 func (wp *WorkerPool) Drain() ([]Task, error) {
 	wp.mu.Lock()
 	if wp.closed {
