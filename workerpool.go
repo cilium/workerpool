@@ -174,9 +174,13 @@ func (wp *WorkerPool) Drain() ([]Task, error) {
 
 	wp.wg.Wait()
 
-	// NOTE: It's not necessary to hold a lock when reading or writing
-	// wp.results as no other routine is running at this point besides the
-	// "run" routine which should be waiting on the tasks channel.
+	// NOTE: No lock is needed here due to the following synchronization:
+	// 1. Only the single run() goroutine writes to wp.results.
+	// 2. run() appends each result BEFORE spawning its worker goroutine.
+	// 3. Each worker calls wg.Done() upon completion.
+	// 4. wg.Wait() above ensures all workers (and thus all appends) completed.
+	// 5. run() is now blocked waiting for tasks on the channel.
+	// Therefore, no concurrent access to wp.results is possible here.
 	res := wp.results
 	wp.results = nil
 
@@ -216,6 +220,10 @@ func (wp *WorkerPool) Close() error {
 
 // run loops over the tasks channel and starts processing routines. It should
 // only be called once during the lifetime of a WorkerPool.
+// This is the sole goroutine that writes to wp.results, making it safe to
+// append without a lock. The append happens before spawning each worker,
+// establishing a happens-before relationship that ensures Drain() can safely
+// read wp.results after wg.Wait() completes.
 func (wp *WorkerPool) run(ctx context.Context) {
 	for t := range wp.tasks {
 		result := taskResult{id: t.id}
