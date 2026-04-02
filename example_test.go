@@ -33,11 +33,12 @@ func IsPrime(ctx context.Context, n int64) bool {
 	return true
 }
 
+// Example demonstrates basic usage of a worker pool with Drain and Close.
 func Example() {
 	wp := workerpool.New(runtime.NumCPU())
 	// Defer Close to ensure cleanup on early return (e.g., errors during Submit).
 	// Close sends cancellation to running tasks and waits for them to complete.
-	// It's safe to call Close multiple times; subsequent calls return ErrClosed.
+	// It's safe to call Close multiple times; subsequent calls return [ErrClosed].
 	defer func() { _ = wp.Close() }()
 
 	for i, n := 0, int64(1_000_000_000_000_000_000); i < 100; i, n = i+1, n+1 {
@@ -51,8 +52,8 @@ func Example() {
 			}
 			return nil
 		})
-		// Submit fails when the pool is closed (ErrClosed), being drained
-		// (ErrDraining), or the parent context is done (context.Canceled).
+		// Submit fails when the pool is closed ([ErrClosed]), being drained
+		// ([ErrDraining]), or the parent context is done ([context.Canceled]).
 		// Check for the error when appropriate.
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -77,12 +78,14 @@ func Example() {
 	}
 
 	// Close is called here explicitly to check for errors. The deferred Close
-	// will also run but returns ErrClosed (which we can ignore on defer).
+	// will also run but returns [ErrClosed] (which we can ignore on defer).
 	if err := wp.Close(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
 
+// ExampleWithResultCallback demonstrates using a result callback to process
+// task results immediately without accumulation.
 func ExampleWithResultCallback() {
 	wp := workerpool.New(runtime.NumCPU(), workerpool.WithResultCallback(func(r workerpool.Result) {
 		if err := r.Err(); err != nil {

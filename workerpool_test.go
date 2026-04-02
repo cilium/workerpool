@@ -17,6 +17,7 @@ import (
 
 var errTask = errors.New("task error")
 
+// TestWorkerPoolNewPanics verifies that New panics when n ≤ 0.
 func TestWorkerPoolNewPanics(t *testing.T) {
 	// helper expecting New(n) to panic.
 	testWorkerPoolNewPanics := func(n int) {
@@ -32,6 +33,8 @@ func TestWorkerPoolNewPanics(t *testing.T) {
 	testWorkerPoolNewPanics(-1)
 }
 
+// TestWithResultCallbackNilPanics verifies that WithResultCallback panics when
+// fn is nil.
 func TestWithResultCallbackNilPanics(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
@@ -41,6 +44,7 @@ func TestWithResultCallbackNilPanics(t *testing.T) {
 	workerpool.WithResultCallback(nil)
 }
 
+// TestWorkerPoolTasksCapacity verifies that the tasks channel is unbuffered.
 func TestWorkerPoolTasksCapacity(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 	defer func() {
@@ -54,6 +58,7 @@ func TestWorkerPoolTasksCapacity(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolCap verifies that Cap returns the concurrent workers capacity.
 func TestWorkerPoolCap(t *testing.T) {
 	one := workerpool.New(1)
 	defer func() {
@@ -87,6 +92,7 @@ func TestWorkerPoolCap(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolLen verifies that Len returns the count of running workers.
 func TestWorkerPoolLen(t *testing.T) {
 	wp := workerpool.New(1)
 	if l := wp.Len(); l != 0 {
@@ -165,6 +171,8 @@ func TestWorkerPoolConcurrentTasksCount(t *testing.T) {
 	}
 }
 
+// TestWorkerPool verifies basic worker pool functionality including Submit and
+// Drain.
 func TestWorkerPool(t *testing.T) {
 	n := runtime.NumCPU()
 	wp := workerpool.New(n)
@@ -257,6 +265,8 @@ func TestWorkerPool(t *testing.T) {
 	}
 }
 
+// TestConcurrentDrain verifies that concurrent Drain and Submit calls return
+// appropriate errors.
 func TestConcurrentDrain(t *testing.T) {
 	n := runtime.NumCPU()
 	wp := workerpool.New(n)
@@ -336,6 +346,8 @@ func TestConcurrentDrain(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolDrainAfterClose verifies that Drain returns ErrClosed after
+// Close.
 func TestWorkerPoolDrainAfterClose(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 	if err := wp.Close(); err != nil {
@@ -350,6 +362,8 @@ func TestWorkerPoolDrainAfterClose(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolDrainAfterCloseWithCallback verifies that ErrClosed takes
+// precedence over ErrCallbackSet.
 func TestWorkerPoolDrainAfterCloseWithCallback(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU(), workerpool.WithResultCallback(func(workerpool.Result) {}))
 	if err := wp.Close(); err != nil {
@@ -365,6 +379,7 @@ func TestWorkerPoolDrainAfterCloseWithCallback(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolSubmitNil verifies that submitting a nil task func is valid.
 func TestWorkerPoolSubmitNil(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 	defer func() {
@@ -393,6 +408,8 @@ func TestWorkerPoolSubmitNil(t *testing.T) {
 
 }
 
+// TestWorkerPoolSubmitNilWithCallback verifies that a nil task func works with
+// result callbacks.
 func TestWorkerPoolSubmitNilWithCallback(t *testing.T) {
 	id := "nothing"
 	var got workerpool.Result
@@ -419,6 +436,8 @@ func TestWorkerPoolSubmitNilWithCallback(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolSubmitAfterClose verifies that Submit returns ErrClosed after
+// Close.
 func TestWorkerPoolSubmitAfterClose(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 	if err := wp.Close(); err != nil {
@@ -429,6 +448,8 @@ func TestWorkerPoolSubmitAfterClose(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolManyClose verifies that calling Close multiple times returns
+// ErrClosed.
 func TestWorkerPoolManyClose(t *testing.T) {
 	wp := workerpool.New(runtime.NumCPU())
 
@@ -446,6 +467,7 @@ func TestWorkerPoolManyClose(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolClose verifies that Close cancels running tasks via context.
 func TestWorkerPoolClose(t *testing.T) {
 	n := runtime.NumCPU()
 	wp := workerpool.New(n)
@@ -478,6 +500,8 @@ func TestWorkerPoolClose(t *testing.T) {
 	wg.Wait() // all routines should have returned
 }
 
+// TestWorkerPoolNewWithContext verifies that cancelling the parent context
+// cancels running tasks.
 func TestWorkerPoolNewWithContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	n := runtime.NumCPU()
@@ -535,6 +559,8 @@ func TestWorkerPoolNewWithContext(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolNewWithCancelledContext verifies that Submit returns
+// [context.Canceled] when the parent context is already cancelled.
 func TestWorkerPoolNewWithCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel before creating the pool
@@ -565,6 +591,8 @@ func TestWorkerPoolNewWithCancelledContext(t *testing.T) {
 	}
 }
 
+// TestWorkerPoolWithResultCallback verifies that result callbacks are invoked
+// and Drain returns ErrCallbackSet.
 func TestWorkerPoolWithResultCallback(t *testing.T) {
 	n := runtime.NumCPU()
 
