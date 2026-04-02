@@ -19,7 +19,7 @@ type Task interface {
 }
 
 // Result is a completed Task that also reports its execution duration.
-// It is passed to the callback registered with WithResultCallback.
+// It is passed to the callback registered with [WithResultCallback].
 type Result interface {
 	Task
 	// Duration returns the time taken to execute the task.
@@ -40,7 +40,7 @@ type taskResult struct {
 // Ensure that taskResult implements the Result interface.
 var _ Result = &taskResult{}
 
-// String implements fmt.Stringer for taskResult.
+// String implements [fmt.Stringer] for taskResult.
 func (t *taskResult) String() string {
 	return t.id
 }

@@ -29,6 +29,7 @@ linters:
     - gocognit
     - goconst
     - gocritic
+    - godoclint
     - godot
     - goheader
     - goprintffuncname
@@ -68,6 +69,8 @@ linters:
     - usetesting
     - wastedassign
   settings:
+    godoclint:
+      default: all
     goheader:
       template: |-
         SPDX-License-Identifier: Apache-2.0
