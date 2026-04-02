@@ -115,18 +115,20 @@ func (wp *WorkerPool) Len() int {
 }
 
 // Submit submits f for processing by a worker. The given id is useful for
-// identifying the task once it is completed. The task f must return when the
-// context ctx is cancelled. The context passed to task f is cancelled when
-// Close is called or when the parent context passed to NewWithContext is done.
+// identifying the task once it is completed.
 //
-// Submit blocks until a routine start processing the task.
+// The task function f receives a context that is cancelled when Close is called
+// or when the parent context passed to NewWithContext is done. Tasks MUST respect
+// context cancellation and return promptly when ctx.Done() is signaled. Tasks that
+// ignore cancellation will cause Close to block indefinitely waiting for them to
+// complete. Use context-aware operations (e.g., select with ctx.Done()) to ensure
+// timely shutdown.
 //
-// If a drain operation is in progress, ErrDraining is returned and the task
-// is not submitted for processing.
-// If the worker pool is closed, ErrClosed is returned and the task is not
-// submitted for processing.
-// If the parent context is done, context.Canceled is returned and the task is
-// not submitted for processing.
+// Submit blocks until a routine starts processing the task.
+//
+// ErrDraining is returned if a drain operation is in progress.
+// ErrClosed is returned if the worker pool is closed.
+// context.Canceled is returned if the parent context is done.
 func (wp *WorkerPool) Submit(id string, f func(ctx context.Context) error) error {
 	wp.mu.Lock()
 	if wp.closed {
@@ -205,9 +207,10 @@ func (wp *WorkerPool) Drain() ([]Task, error) {
 }
 
 // Close closes the worker pool, rendering it unable to process new tasks.
-// Close sends the cancellation signal to any running task and waits for all
-// workers, if any, to return. When a result callback is set via
-// WithResultCallback, all callback invocations are guaranteed to have completed
+// Close sends the cancellation signal to any running task via context cancellation
+// and waits indefinitely for all workers to return. If tasks do not respect context
+// cancellation, Close will block until they complete. When a result callback is set
+// via WithResultCallback, all callback invocations are guaranteed to have completed
 // before Close returns.
 //
 // Close will return ErrClosed if it has already been called. This makes it safe

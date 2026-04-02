@@ -40,11 +40,19 @@ import (
 )
 
 // IsPrime returns true if n is prime, false otherwise.
-func IsPrime(n int64) bool {
+func IsPrime(ctx context.Context, n int64) bool {
 	if n < 2 {
 		return false
 	}
 	for p := int64(2); p*p <= n; p++ {
+		// Check for cancellation periodically (every 10000 iterations)
+		if p%10000 == 0 {
+			select {
+			case <-ctx.Done():
+				return false
+			default:
+			}
+		}
 		if n%p == 0 {
 			return false
 		}
@@ -63,9 +71,9 @@ func main() {
 		id := fmt.Sprintf("task #%d", i)
 		// Use Submit to submit tasks for processing. Submit blocks when no
 		// worker is available to pick up the task.
-		err := wp.Submit(id, func(_ context.Context) error {
+		err := wp.Submit(id, func(ctx context.Context) error {
 			fmt.Println("isprime", n)
-			if IsPrime(n) {
+			if IsPrime(ctx, n) {
 				fmt.Println(n, "is prime!")
 			}
 			return nil
@@ -135,8 +143,8 @@ func main() {
 
 	for i, n := 0, int64(1_000_000_000_000_000_000); i < 100; i, n = i+1, n+1 {
 		id := fmt.Sprintf("task #%d", i)
-		err := wp.Submit(id, func(_ context.Context) error {
-			if IsPrime(n) {
+		err := wp.Submit(id, func(ctx context.Context) error {
+			if IsPrime(ctx, n) {
 				fmt.Println(n, "is prime!")
 			}
 			return nil
