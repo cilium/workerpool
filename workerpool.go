@@ -48,9 +48,12 @@ type Option func(*WorkerPool)
 //   - [Drain] will return [ErrCallbackSet] instead of collecting results
 //   - Results are processed immediately upon completion, avoiding memory
 //     buildup
-//   - The callback fn may be invoked concurrently from multiple goroutines
 //
-// The callback fn must be safe for concurrent use.
+// The callback fn is invoked from the worker goroutines.
+// This has a few implications:
+// 1. fn must be safe for concurrent use.
+// 2. fn must NOT call [Submit] nor [Close] as it will lead to a deadlock.
+//
 // WithResultCallback panics if fn is nil.
 func WithResultCallback(fn func(Result)) Option {
 	// TODO(v2): New/NewWithContext should return an error so that option
